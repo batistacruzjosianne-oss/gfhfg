@@ -13,8 +13,7 @@ local Workspace = game:GetService("Workspace")
 local State = {
     antiBatActive = false,
     antiBatThread = nil,
-    guiVisible = true,
-    lastTpTime = 0
+    guiVisible = true
 }
 
 local C = {
@@ -107,6 +106,7 @@ local function toggleAntiBat()
                 if target and target.Character then
                     local tr = target.Character:FindFirstChild("HumanoidRootPart")
                     if tr then
+                        -- SETHIDDENPROPERTY NO INIMIGO (tr)
                         if type(sethiddenproperty) == "function" then
                             sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
                         elseif syn and type(syn.sethiddenproperty) == "function" then
@@ -116,26 +116,12 @@ local function toggleAntiBat()
                 end
             end
             
-            -- ========== VELOCIDADE (anda rápido) ==========
+            -- ========== VELOCIDADE ==========
             local dir = hum.MoveDirection
             if dir.Magnitude <= 0 then
                 dir = hrp.CFrame.LookVector
             end
             hrp.Velocity = Vector3.new(dir.X * 500, hrp.Velocity.Y, dir.Z * 500)
-            
-            -- ========== TP 400 PARA TODOS OS LADOS A CADA 0.5s ==========
-            local now = tick()
-            if now - State.lastTpTime >= 0.5 then
-                State.lastTpTime = now
-                
-                local randomAngle = math.random() * 2 * math.pi
-                local randomX = math.cos(randomAngle) * 400
-                local randomZ = math.sin(randomAngle) * 400
-                
-                local pos = hrp.Position
-                hrp.Position = Vector3.new(pos.X + randomX, pos.Y, pos.Z + randomZ)
-                hrp.Velocity = Vector3.new(0, 0, 0)
-            end
             
             -- ========== CÂMERA LIVRE ==========
             local cam = Workspace.CurrentCamera
