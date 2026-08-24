@@ -1,4 +1,4 @@
--- AraDuels (BLUE THEME)
+-- AraDuels (BLUE THEME) - COM MENU ANTI ANTI DESYNC
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -12,11 +12,8 @@ local UIS = game:GetService("UserInputService")
 -- ----------------------------------------------------------------
 local State = {
     antiBatActive = false,
-    infJumpActive = false,
     antiBatThread = nil,
-    infJumpThread = nil,
-    guiVisible = true,
-    movementBlocked = false
+    guiVisible = true
 }
 
 local C = {
@@ -37,8 +34,7 @@ local C = {
 -- ----------------------------------------------------------------
 --  Keybinds
 -- ----------------------------------------------------------------
-local antiBatBind = { type = "keyboard", value = Enum.KeyCode.Z }  -- MUDOU PARA Z
-local infJumpBind = { type = "keyboard", value = Enum.KeyCode.I }
+local antiBatBind = { type = "keyboard", value = Enum.KeyCode.Z }
 local guiToggleBind = { type = "keyboard", value = Enum.KeyCode.LeftControl }
 
 -- ----------------------------------------------------------------
@@ -90,8 +86,6 @@ local function saveConfig()
     local data = {
         antiBatType = antiBatBind.type,
         antiBatValue = tostring(antiBatBind.value):gsub("Enum.KeyCode.", ""),
-        infJumpType = infJumpBind.type,
-        infJumpValue = tostring(infJumpBind.value):gsub("Enum.KeyCode.", ""),
         guiToggleType = guiToggleBind.type,
         guiToggleValue = tostring(guiToggleBind.value):gsub("Enum.KeyCode.", "")
     }
@@ -142,11 +136,6 @@ local function loadConfig()
         antiBatBind.type = cfg.antiBatType
         antiBatBind.value = ab
     end
-    local ij = getEnum(cfg.infJumpValue, cfg.infJumpType)
-    if ij then
-        infJumpBind.type = cfg.infJumpType
-        infJumpBind.value = ij
-    end
     local gt = getEnum(cfg.guiToggleValue, cfg.guiToggleType)
     if gt then
         guiToggleBind.type = cfg.guiToggleType
@@ -159,18 +148,8 @@ pcall(loadConfig)
 --  BLOQUEIO DE MOVIMENTO (Mobile + PC)
 -- ----------------------------------------------------------------
 local movementConnections = {}
-local mobileButtons = {}
 
--- Bloqueia movimento no PC (WASD)
-local function blockPCMovement(blocked)
-    if blocked then
-        -- Cria um contexto de entrada falso para bloquear
-        local context = Instance.new("ContextActionService")
-        -- Não precisa de contexto, só bloquear as teclas
-    end
-end
-
--- Bloqueia movimento no Mobile (botões virtuais)
+-- Bloqueia Mobile
 local function blockMobileMovement(blocked)
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if not pg then return end
@@ -190,8 +169,6 @@ end
 
 -- Bloqueia TODAS as entradas de movimento
 local function blockAllMovement(blocked)
-    State.movementBlocked = blocked
-    
     if blocked then
         -- Bloqueia teclas WASD no PC
         local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
@@ -199,7 +176,6 @@ local function blockAllMovement(blocked)
             local conn = UIS.InputBegan:Connect(function(inp, gpe)
                 if gpe then return end
                 if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == key then
-                    -- Cancela o input
                     inp:Consume()
                 end
             end)
@@ -208,9 +184,6 @@ local function blockAllMovement(blocked)
         
         -- Bloqueia joystick virtual no Mobile
         blockMobileMovement(true)
-        
-        -- Bloqueia movimento do teclado (método alternativo)
-        blockPCMovement(true)
         
     else
         -- Remove bloqueios do PC
@@ -221,12 +194,11 @@ local function blockAllMovement(blocked)
         
         -- Libera Mobile
         blockMobileMovement(false)
-        blockPCMovement(false)
     end
 end
 
 -- ----------------------------------------------------------------
---  Anti Bat - COM BLOQUEIO DE MOVIMENTO
+--  Anti Bat
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -265,7 +237,6 @@ local function toggleAntiBat()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp then return end
             
-            -- Velocidade 2491.41 na direção que está olhando
             local dir = hum.MoveDirection
             if dir.Magnitude <= 0 then
                 dir = hrp.CFrame.LookVector
@@ -281,81 +252,298 @@ local function toggleAntiBat()
 end
 
 -- ----------------------------------------------------------------
---  Infinite Jump
+--  FUNÇÃO PARA CRIAR GUI (estilo Anti Anti Desync)
 -- ----------------------------------------------------------------
-local infJumpStatus, infJumpSwitchBall, infJumpRow, infJumpRowStroke
-local infJumpKeyBtn, infJumpKeyBtnStroke
+local function getGuiParent()
+    if typeof(gethui) == "function" then
+        local success, result = pcall(gethui)
+        if success and result then return result end
+    end
+    local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success and coreGui then return coreGui end
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
 
-local jumpHeld = false
-local lastJumpBoostTime = 0
-local JUMP_BOOST_INTERVAL = 0.05
+local function createInstance(className, properties, parent)
+    local instance = Instance.new(className)
+    for property, value in pairs(properties or {}) do
+        instance[property] = value
+    end
+    instance.Parent = parent
+    return instance
+end
 
--- Mobile jump button hook
-task.spawn(function()
-    local pg = LocalPlayer:WaitForChild("PlayerGui", 10)
-    if pg then
-        local function hookJumpButton(btn)
-            if btn:IsA("GuiButton") and btn.Name == "JumpButton" and not btn:GetAttribute("InfJumpHooked") then
-                btn:SetAttribute("InfJumpHooked", true)
-                btn.MouseButton1Down:Connect(function()
-                    if State.infJumpActive then jumpHeld = true end
-                end)
-                btn.MouseButton1Up:Connect(function() jumpHeld = false end)
-                btn.MouseLeave:Connect(function() jumpHeld = false end)
+local function addCorner(object, radius)
+    return createInstance("UICorner", { CornerRadius = UDim.new(0, radius) }, object)
+end
+
+-- ----------------------------------------------------------------
+--  CRIAR GUI ESTILO ANTI ANTI DESYNC
+-- ----------------------------------------------------------------
+local parentGui = getGuiParent()
+
+-- Remove GUI antiga se existir
+if parentGui:FindFirstChild("LarpAntiAntiDesyncGui") then
+    parentGui.LarpAntiAntiDesyncGui:Destroy()
+end
+
+local screenGui = createInstance("ScreenGui", {
+    Name = "LarpAntiAntiDesyncGui",
+    ResetOnSpawn = false,
+    IgnoreGuiInset = true,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, parentGui)
+
+-- Main Frame
+local mainFrame = createInstance("Frame", {
+    Size = UDim2.fromOffset(240, 130),
+    Position = UDim2.new(0.5, -120, 0.5, -65),
+    BackgroundColor3 = Color3.fromRGB(220, 220, 220),
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    Active = true,
+    ZIndex = 1,
+}, screenGui)
+addCorner(mainFrame, 18)
+
+-- Background Image
+createInstance("ImageLabel", {
+    Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://98596557474777",
+    ScaleType = Enum.ScaleType.Crop,
+    ZIndex = 2,
+}, mainFrame)
+
+-- Title Text
+createInstance("TextLabel", {
+    Size = UDim2.new(1, -70, 0, 30),
+    Position = UDim2.fromOffset(12, 6),
+    BackgroundTransparency = 1,
+    Text = "Anti Anti Desync",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 14,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 3,
+}, mainFrame)
+
+-- Control Buttons
+local minBtn = createInstance("TextButton", {
+    Size = UDim2.fromOffset(24, 24),
+    Position = UDim2.new(1, -56, 0, 8),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+    Text = "-",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 16,
+    AutoButtonColor = false,
+    ZIndex = 3,
+}, mainFrame)
+addCorner(minBtn, 9)
+
+local closeBtn = createInstance("TextButton", {
+    Size = UDim2.fromOffset(24, 24),
+    Position = UDim2.new(1, -28, 0, 8),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+    Text = "X",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 13,
+    AutoButtonColor = false,
+    ZIndex = 3,
+}, mainFrame)
+addCorner(closeBtn, 9)
+
+-- Activate Button
+local toggleButton = createInstance("TextButton", {
+    Size = UDim2.new(1, -24, 0, 36),
+    Position = UDim2.fromOffset(12, 40),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+    Text = "ACTIVATE",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 15,
+    AutoButtonColor = false,
+    ZIndex = 3,
+}, mainFrame)
+addCorner(toggleButton, 12)
+
+-- Keybind Section
+createInstance("TextLabel", {
+    Size = UDim2.fromOffset(80, 24),
+    Position = UDim2.fromOffset(12, 90),
+    BackgroundTransparency = 1,
+    Text = "KEYBIND",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 3,
+}, mainFrame)
+
+local keybindBox = createInstance("TextBox", {
+    Size = UDim2.fromOffset(42, 28),
+    Position = UDim2.new(1, -54, 0, 88),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+    Text = "Z",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.FredokaOne,
+    TextSize = 14,
+    ClearTextOnFocus = false,
+    ZIndex = 3,
+}, mainFrame)
+addCorner(keybindBox, 10)
+
+-- ----------------------------------------------------------------
+--  LOGICA DO ANTI ANTI DESYNC (Freeze outros players)
+-- ----------------------------------------------------------------
+local freezeConnections = {}
+local freezeActive = false
+
+local function toggleFreeze(isEnabled)
+    freezeActive = isEnabled
+    
+    if isEnabled then
+        local connection = RunService.Stepped:Connect(function()
+            if not freezeActive then
+                connection:Disconnect()
+                return
+            end
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    local character = player.Character
+                    if character then
+                        local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+                        if humanoid then
+                            humanoid.WalkSpeed = 0
+                            humanoid.JumpPower = 0
+                            humanoid.AutoRotate = false
+                        end
+                        for _, object in ipairs(character:GetDescendants()) do
+                            if object:IsA("BasePart") then
+                                object.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        table.insert(freezeConnections, connection)
+    else
+        freezeActive = false
+        for _, connection in ipairs(freezeConnections) do
+            if typeof(connection) == "RBXScriptConnection" then
+                connection:Disconnect()
             end
         end
-        for _, d in ipairs(pg:GetDescendants()) do hookJumpButton(d) end
-        pg.DescendantAdded:Connect(hookJumpButton)
-    end
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    if State.infJumpActive then
-        jumpHeld = true
-        task.wait(0.05)
-        jumpHeld = false
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(inp, gpe)
-    if gpe then return end
-    if State.infJumpActive and inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == Enum.KeyCode.Space then
-        jumpHeld = true
-    end
-end)
-UserInputService.InputEnded:Connect(function(inp, gpe)
-    if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == Enum.KeyCode.Space then
-        jumpHeld = false
-    end
-end)
-
-local function startInfJumpLoop()
-    if State.infJumpThread then State.infJumpThread:Disconnect() end
-    State.infJumpThread = RunService.Stepped:Connect(function()
-        if not State.infJumpActive then return end
-        if not jumpHeld then return end
-        local now = tick()
-        if now - lastJumpBoostTime < JUMP_BOOST_INTERVAL then return end
-        lastJumpBoostTime = now
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hum or not hrp or hum.Health <= 0 then return end
-        local vel = hrp.AssemblyLinearVelocity
-        if vel.Y < 55 then
-            hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 65, vel.Z)
+        freezeConnections = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+                    if humanoid then
+                        humanoid.WalkSpeed = 16
+                        humanoid.JumpPower = 50
+                        humanoid.AutoRotate = true
+                    end
+                end
+            end
         end
-    end)
-end
-
-local function stopInfJumpLoop()
-    if State.infJumpThread then
-        State.infJumpThread:Disconnect()
-        State.infJumpThread = nil
     end
-    jumpHeld = false
-    lastJumpBoostTime = 0
 end
 
-local function toggle
+-- ----------------------------------------------------------------
+--  LOGICA DOS BOTOES
+-- ----------------------------------------------------------------
+local isActive = false
+local boundKey = Enum.KeyCode.Z
+
+local function updateButtonState(state)
+    isActive = state
+    if state then
+        toggleButton.Text = "DEACTIVATE"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
+        toggleFreeze(true)
+        toggleAntiBat() -- Ativa o Anti-Bat também
+    else
+        toggleButton.Text = "ACTIVATE"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+        toggleFreeze(false)
+        if State.antiBatActive then
+            toggleAntiBat() -- Desativa o Anti-Bat
+        end
+    end
+end
+
+toggleButton.Activated:Connect(function()
+    updateButtonState(not isActive)
+end)
+
+closeBtn.Activated:Connect(function()
+    updateButtonState(false)
+    if State.antiBatActive then
+        toggleAntiBat()
+    end
+    screenGui:Destroy()
+end)
+
+minBtn.Activated:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Keybind Processing
+keybindBox.FocusLost:Connect(function()
+    local input = keybindBox.Text:upper()
+    if #input > 0 then
+        local char = string.sub(input, 1, 1)
+        for _, enumKey in ipairs(Enum.KeyCode:GetEnumItems()) do
+            if enumKey.Name == char or enumKey.Name == "Z" and char == "Z" then
+                boundKey = enumKey
+                keybindBox.Text = char
+                antiBatBind.value = enumKey
+                saveConfig()
+                return
+            end
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == boundKey then
+        updateButtonState(not isActive)
+    end
+end)
+
+-- Dragging Logic
+local isDragging = false
+local dragOffset = Vector2.new()
+local startPosition = UDim2.new()
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = true
+        dragOffset = input.Position
+        startPosition = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = Vector2.new(input.Position.X - dragOffset.X, input.Position.Y - dragOffset.Y)
+        mainFrame.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = false
+    end
+end)
+
+-- Inicia desativado
+updateButtonState(false)
+
+print("AraDuels loaded - Anti-Bat com menu Anti Anti Desync!")
