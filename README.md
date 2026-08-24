@@ -31,6 +31,67 @@ local C = {
     watermark = Color3.fromRGB(120, 200, 255)
 }
 
+-- ----------------------------------------------------------------
+--  BLOQUEIO DE MOVIMENTO
+-- ----------------------------------------------------------------
+local movementConnections = {}
+
+local function blockAllMovement(blocked)
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if blocked then
+                hum.WalkSpeed = 0
+                hum.JumpPower = 0
+                hum.AutoRotate = false
+            else
+                hum.WalkSpeed = 16
+                hum.JumpPower = 50
+                hum.AutoRotate = true
+            end
+        end
+    end
+    
+    if blocked then
+        local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
+        for _, key in ipairs(keys) do
+            local conn = UIS.InputBegan:Connect(function(inp, gpe)
+                if gpe then return end
+                if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == key then
+                    inp:Consume()
+                end
+            end)
+            table.insert(movementConnections, conn)
+        end
+        
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if pg then
+            for _, btn in ipairs(pg:GetDescendants()) do
+                if btn:IsA("GuiButton") and btn.Name and string.find(btn.Name, "Move") then
+                    btn.Active = false
+                    btn.Visible = false
+                end
+            end
+        end
+    else
+        for _, conn in ipairs(movementConnections) do
+            conn:Disconnect()
+        end
+        movementConnections = {}
+        
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if pg then
+            for _, btn in ipairs(pg:GetDescendants()) do
+                if btn:IsA("GuiButton") and btn.Name and string.find(btn.Name, "Move") then
+                    btn.Active = true
+                    btn.Visible = true
+                end
+            end
+        end
+    end
+end
+
 -- ========== FUNÇÃO PARA PEGAR O JOGADOR MAIS PRÓXIMO ==========
 local function getClosestPlayer()
     local closest = nil
@@ -64,13 +125,15 @@ local hasHiddenProperty = type(sethiddenproperty) == "function" or type(syn and 
 print("sethiddenproperty disponível:", hasHiddenProperty)
 
 -- ----------------------------------------------------------------
---  ANTI BAT - SEM BLOCK MOVEMENT
+--  ANTI BAT
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
 
 local function toggleAntiBat()
     State.antiBatActive = not State.antiBatActive
+    
+    blockAllMovement(State.antiBatActive)
     
     if antiBatStatus then
         antiBatStatus.Text = State.antiBatActive and "STATUS: ACTIVE" or "STATUS: DISABLED"
@@ -100,28 +163,25 @@ local function toggleAntiBat()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp then return end
             
-            -- ========== SETHIDDENPROPERTY NO INIMIGO ==========
+            -- ========== SETHIDDENPROPERTY ==========
             if hasHiddenProperty then
                 local target = getClosestPlayer()
                 if target and target.Character then
                     local tr = target.Character:FindFirstChild("HumanoidRootPart")
                     if tr then
-                        -- SETHIDDENPROPERTY NO INIMIGO (tr)
+                        -- Tenta com sethiddenproperty normal
                         if type(sethiddenproperty) == "function" then
-                            sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
+                            sethiddenproperty(hrp, "PhysicsRepRootPart", tr)
+                        -- Tenta com syn
                         elseif syn and type(syn.sethiddenproperty) == "function" then
-                            syn.sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
+                            syn.sethiddenproperty(hrp, "PhysicsRepRootPart", tr)
                         end
                     end
                 end
             end
             
-            -- ========== VELOCIDADE ==========
-            local dir = hum.MoveDirection
-            if dir.Magnitude <= 0 then
-                dir = hrp.CFrame.LookVector
-            end
-            hrp.Velocity = Vector3.new(dir.X * 500, hrp.Velocity.Y, dir.Z * 500)
+            -- ========== VELOCIDADE (mantém no lugar) ==========
+            hrp.Velocity = Vector3.new(0, 0, 0)
             
             -- ========== CÂMERA LIVRE ==========
             local cam = Workspace.CurrentCamera
@@ -357,4 +417,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – SEM BLOCK MOVEMENT!")
+print("AraDuels loaded – Verifique no console se sethiddenproperty está disponível!")
