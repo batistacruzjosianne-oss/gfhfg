@@ -64,7 +64,7 @@ local hasHiddenProperty = type(sethiddenproperty) == "function" or type(syn and 
 print("sethiddenproperty disponível:", hasHiddenProperty)
 
 -- ----------------------------------------------------------------
---  ANTI BAT - MANDA A FÍSICA DO INIMIGO PRA LONGE
+--  ANTI BAT - SÓ TROCA DE FÍSICA (SEM TP, SEM VELOCIDADE)
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -100,12 +100,12 @@ local function toggleAntiBat()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp then return end
             
-            -- ========== PEGA A FÍSICA DO INIMIGO E MANDA PRA LONGE ==========
+            -- ========== TROCA DE FÍSICA (SUA HRP COM A DO INIMIGO) ==========
             local target = getClosestPlayer()
             if target and target.Character then
                 local tr = target.Character:FindFirstChild("HumanoidRootPart")
                 if tr then
-                    -- syn.sethiddenproperty no INIMIGO
+                    -- syn.sethiddenproperty: TROCA A FÍSICA
                     if hasHiddenProperty then
                         if type(sethiddenproperty) == "function" then
                             sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
@@ -113,20 +113,11 @@ local function toggleAntiBat()
                             syn.sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
                         end
                     end
-                    
-                    -- MANDA A FÍSICA DO INIMIGO PRA LONGE (VELOCIDADE ALTA)
-                    -- DIREÇÃO ALEATÓRIA PARA LONGE
-                    local randomAngle = math.random() * 2 * math.pi
-                    local randomX = math.cos(randomAngle) * 10000
-                    local randomZ = math.sin(randomAngle) * 10000
-                    
-                    -- APLICA VELOCIDADE NA HRP DO INIMIGO (tr)
-                    tr.Velocity = Vector3.new(randomX, 5000, randomZ)
-                    
-                    -- TAMBÉM JOGA ELE PARA CIMA
-                    tr.Position = Vector3.new(tr.Position.X, tr.Position.Y + 500, tr.Position.Z)
                 end
             end
+            
+            -- ========== SEM VELOCIDADE, SEM TP ==========
+            -- Você fica parado, só troca a física
             
             -- ========== CÂMERA LIVRE ==========
             local cam = Workspace.CurrentCamera
@@ -362,4 +353,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – MANDA A FÍSICA DO INIMIGO PRA LONGE!")
+print("AraDuels loaded – SÓ TROCA DE FÍSICA! SEM TP, SEM VELOCIDADE!")
