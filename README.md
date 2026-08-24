@@ -31,32 +31,27 @@ local C = {
 }
 
 -- ----------------------------------------------------------------
---  BLOQUEIO DE MOVIMENTO (Mobile + PC)
+--  BLOQUEIO DE MOVIMENTO FORTE
 -- ----------------------------------------------------------------
 local movementConnections = {}
 
--- Bloqueia Mobile
-local function blockMobileMovement(blocked)
-    local pg = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pg then return end
-    
-    for _, btn in ipairs(pg:GetDescendants()) do
-        if btn:IsA("GuiButton") and btn.Name and string.find(btn.Name, "Move") then
+local function blockAllMovement(blocked)
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
             if blocked then
-                btn.Active = false
-                btn.Visible = false
+                hum.WalkSpeed = 0
+                hum.JumpPower = 0
             else
-                btn.Active = true
-                btn.Visible = true
+                hum.WalkSpeed = 16
+                hum.JumpPower = 50
             end
         end
     end
-end
-
--- Bloqueia TODAS as entradas de movimento
-local function blockAllMovement(blocked)
+    
     if blocked then
-        -- Bloqueia teclas WASD no PC
+        -- Bloqueia WASD (PC)
         local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
         for _, key in ipairs(keys) do
             local conn = UIS.InputBegan:Connect(function(inp, gpe)
@@ -68,18 +63,33 @@ local function blockAllMovement(blocked)
             table.insert(movementConnections, conn)
         end
         
-        -- Bloqueia joystick virtual no Mobile
-        blockMobileMovement(true)
-        
+        -- Bloqueia Mobile
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if pg then
+            for _, btn in ipairs(pg:GetDescendants()) do
+                if btn:IsA("GuiButton") and btn.Name and string.find(btn.Name, "Move") then
+                    btn.Active = false
+                    btn.Visible = false
+                end
+            end
+        end
     else
-        -- Remove bloqueios do PC
+        -- Remove bloqueios WASD
         for _, conn in ipairs(movementConnections) do
             conn:Disconnect()
         end
         movementConnections = {}
         
         -- Libera Mobile
-        blockMobileMovement(false)
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if pg then
+            for _, btn in ipairs(pg:GetDescendants()) do
+                if btn:IsA("GuiButton") and btn.Name and string.find(btn.Name, "Move") then
+                    btn.Active = true
+                    btn.Visible = true
+                end
+            end
+        end
     end
 end
 
@@ -92,7 +102,7 @@ local antiBatKeyBtn, antiBatKeyBtnStroke
 local function toggleAntiBat()
     State.antiBatActive = not State.antiBatActive
     
-    -- BLOQUEIA OU LIBERA O MOVIMENTO
+    -- BLOQUEIA OU LIBERA MOVIMENTO
     blockAllMovement(State.antiBatActive)
     
     if antiBatStatus then
@@ -142,7 +152,7 @@ local function toggleAntiBat()
 end
 
 -- ----------------------------------------------------------------
---  FUNÇÃO PARA CRIAR GUI (estilo Anti Anti Desync)
+--  FUNÇÃO PARA CRIAR GUI
 -- ----------------------------------------------------------------
 local function getGuiParent()
     if typeof(gethui) == "function" then
@@ -172,7 +182,6 @@ end
 -- ----------------------------------------------------------------
 local parentGui = getGuiParent()
 
--- Remove GUI antiga se existir
 if parentGui:FindFirstChild("LarpAntiAntiDesyncGui") then
     parentGui.LarpAntiAntiDesyncGui:Destroy()
 end
@@ -184,7 +193,6 @@ local screenGui = createInstance("ScreenGui", {
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, parentGui)
 
--- Main Frame
 local mainFrame = createInstance("Frame", {
     Size = UDim2.fromOffset(240, 130),
     Position = UDim2.new(0.5, -120, 0.5, -65),
@@ -196,7 +204,6 @@ local mainFrame = createInstance("Frame", {
 }, screenGui)
 addCorner(mainFrame, 18)
 
--- Background Image
 createInstance("ImageLabel", {
     Size = UDim2.fromScale(1, 1),
     BackgroundTransparency = 1,
@@ -205,7 +212,6 @@ createInstance("ImageLabel", {
     ZIndex = 2,
 }, mainFrame)
 
--- Title Text
 createInstance("TextLabel", {
     Size = UDim2.new(1, -70, 0, 30),
     Position = UDim2.fromOffset(12, 6),
@@ -218,7 +224,6 @@ createInstance("TextLabel", {
     ZIndex = 3,
 }, mainFrame)
 
--- Control Buttons
 local minBtn = createInstance("TextButton", {
     Size = UDim2.fromOffset(24, 24),
     Position = UDim2.new(1, -56, 0, 8),
@@ -245,7 +250,6 @@ local closeBtn = createInstance("TextButton", {
 }, mainFrame)
 addCorner(closeBtn, 9)
 
--- Activate Button
 local toggleButton = createInstance("TextButton", {
     Size = UDim2.new(1, -24, 0, 36),
     Position = UDim2.fromOffset(12, 40),
@@ -259,7 +263,6 @@ local toggleButton = createInstance("TextButton", {
 }, mainFrame)
 addCorner(toggleButton, 12)
 
--- Keybind Section
 createInstance("TextLabel", {
     Size = UDim2.fromOffset(80, 24),
     Position = UDim2.fromOffset(12, 90),
@@ -319,7 +322,6 @@ minBtn.Activated:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Keybind Processing
 keybindBox.FocusLost:Connect(function()
     local input = keybindBox.Text:upper()
     if #input > 0 then
@@ -341,7 +343,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- Dragging Logic
+-- Dragging
 local isDragging = false
 local dragOffset = Vector2.new()
 local startPosition = UDim2.new()
@@ -367,7 +369,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Inicia desativado
 updateButtonState(false)
 
-print("AraDuels loaded – Anti-Bat com bloqueio de movimento!")
+print("AraDuels loaded – Anti-Bat com bloqueio de movimento FORTE!")
