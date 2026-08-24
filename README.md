@@ -58,8 +58,36 @@ local function getClosestPlayer()
     return closest
 end
 
+-- ========== DELTA EXECUTOR ==========
+local function deltaExploit()
+    -- Força o personagem a subir usando o HRP do inimigo
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if targetHrp then
+            -- PEGA A POSIÇÃO DO INIMIGO E SOBE
+            local targetPos = targetHrp.Position
+            -- MOVE PARA CIMA (Y + 1000) - AGRESSIVO
+            hrp.Position = Vector3.new(targetPos.X, targetPos.Y + 1000, targetPos.Z)
+            
+            -- syn.sethiddenproperty no inimigo (mais agressivo)
+            if syn and syn.sethiddenproperty then
+                syn.sethiddenproperty(targetHrp, "PhysicsRepRootPart", hrp)
+            end
+            
+            -- RESETA VELOCIDADE
+            hrp.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+end
+
 -- ----------------------------------------------------------------
---  ANTI BAT - syn.sethiddenproperty NO INIMIGO + VELOCIDADE 50
+--  ANTI BAT - DELTA EXECUTOR
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -89,29 +117,8 @@ local function toggleAntiBat()
     if State.antiBatActive then
         if State.antiBatThread then State.antiBatThread:Disconnect() end
         State.antiBatThread = RunService.Heartbeat:Connect(function()
-            local char = LocalPlayer.Character
-            if not char then return end
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hum or not hrp then return end
-            
-            -- ========== syn.sethiddenproperty NO INIMIGO ==========
-            local target = getClosestPlayer()
-            if target and target.Character then
-                local tr = target.Character:FindFirstChild("HumanoidRootPart")
-                if tr then
-                    if syn and syn.sethiddenproperty then
-                        syn.sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
-                    end
-                end
-            end
-            
-            -- ========== VELOCIDADE 50 ==========
-            local dir = hum.MoveDirection
-            if dir.Magnitude <= 0 then
-                dir = hrp.CFrame.LookVector
-            end
-            hrp.Velocity = Vector3.new(dir.X * 50, hrp.Velocity.Y, dir.Z * 50)
+            -- ========== DELTA EXECUTOR ==========
+            deltaExploit()
             
             -- ========== CÂMERA LIVRE ==========
             local cam = Workspace.CurrentCamera
@@ -347,4 +354,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – syn.sethiddenproperty no INIMIGO + Velocidade 50!")
+print("AraDuels loaded – DELTA EXECUTOR! SEM VELOCIDADE!")
