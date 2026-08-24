@@ -64,7 +64,7 @@ local hasHiddenProperty = type(sethiddenproperty) == "function" or type(syn and 
 print("sethiddenproperty disponível:", hasHiddenProperty)
 
 -- ----------------------------------------------------------------
---  ANTI BAT - USA A HRP DO INIMIGO
+--  ANTI BAT - MANDA A FÍSICA DO INIMIGO PRA LONGE
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -100,12 +100,12 @@ local function toggleAntiBat()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp then return end
             
-            -- ========== USA A HRP DO INIMIGO ==========
+            -- ========== PEGA A FÍSICA DO INIMIGO E MANDA PRA LONGE ==========
             local target = getClosestPlayer()
             if target and target.Character then
                 local tr = target.Character:FindFirstChild("HumanoidRootPart")
                 if tr then
-                    -- syn.sethiddenproperty no INIMIGO (usa a HRP do inimigo)
+                    -- syn.sethiddenproperty no INIMIGO
                     if hasHiddenProperty then
                         if type(sethiddenproperty) == "function" then
                             sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
@@ -114,10 +114,17 @@ local function toggleAntiBat()
                         end
                     end
                     
-                    -- PEGA A POSIÇÃO DO INIMIGO (tr) E MOVE VOCÊ PARA ELA + Y
-                    local targetPos = tr.Position
-                    hrp.Position = Vector3.new(targetPos.X, targetPos.Y + 1000, targetPos.Z)
-                    hrp.Velocity = Vector3.new(0, 0, 0)
+                    -- MANDA A FÍSICA DO INIMIGO PRA LONGE (VELOCIDADE ALTA)
+                    -- DIREÇÃO ALEATÓRIA PARA LONGE
+                    local randomAngle = math.random() * 2 * math.pi
+                    local randomX = math.cos(randomAngle) * 10000
+                    local randomZ = math.sin(randomAngle) * 10000
+                    
+                    -- APLICA VELOCIDADE NA HRP DO INIMIGO (tr)
+                    tr.Velocity = Vector3.new(randomX, 5000, randomZ)
+                    
+                    -- TAMBÉM JOGA ELE PARA CIMA
+                    tr.Position = Vector3.new(tr.Position.X, tr.Position.Y + 500, tr.Position.Z)
                 end
             end
             
@@ -355,4 +362,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – USA A HRP DO INIMIGO!")
+print("AraDuels loaded – MANDA A FÍSICA DO INIMIGO PRA LONGE!")
