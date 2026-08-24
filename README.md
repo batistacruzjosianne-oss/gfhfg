@@ -64,7 +64,7 @@ local hasHiddenProperty = type(sethiddenproperty) == "function" or type(syn and 
 print("sethiddenproperty disponível:", hasHiddenProperty)
 
 -- ----------------------------------------------------------------
---  ANTI BAT - SEM BLOCK MOVEMENT
+--  ANTI BAT - SETHIDDENPROPERTY NO INIMIGO + VELOCIDADE 50
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -106,7 +106,6 @@ local function toggleAntiBat()
                 if target and target.Character then
                     local tr = target.Character:FindFirstChild("HumanoidRootPart")
                     if tr then
-                        -- SETHIDDENPROPERTY NO INIMIGO (tr)
                         if type(sethiddenproperty) == "function" then
                             sethiddenproperty(tr, "PhysicsRepRootPart", hrp)
                         elseif syn and type(syn.sethiddenproperty) == "function" then
@@ -116,12 +115,12 @@ local function toggleAntiBat()
                 end
             end
             
-            -- ========== VELOCIDADE ==========
+            -- ========== VELOCIDADE 50 (EVITA FLING) ==========
             local dir = hum.MoveDirection
             if dir.Magnitude <= 0 then
                 dir = hrp.CFrame.LookVector
             end
-            hrp.Velocity = Vector3.new(dir.X * 500, hrp.Velocity.Y, dir.Z * 500)
+            hrp.Velocity = Vector3.new(dir.X * 50, hrp.Velocity.Y, dir.Z * 50)
             
             -- ========== CÂMERA LIVRE ==========
             local cam = Workspace.CurrentCamera
@@ -357,4 +356,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – SEM BLOCK MOVEMENT!")
+print("AraDuels loaded – sethiddenproperty no INIMIGO + Velocidade 50!")
