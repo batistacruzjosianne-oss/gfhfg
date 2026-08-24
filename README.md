@@ -5,6 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 -- ----------------------------------------------------------------
 --  Colors & State
@@ -31,7 +32,7 @@ local C = {
 }
 
 -- ----------------------------------------------------------------
---  BLOQUEIO DE MOVIMENTO FORTE
+--  BLOQUEIO DE MOVIMENTO
 -- ----------------------------------------------------------------
 local movementConnections = {}
 
@@ -43,15 +44,16 @@ local function blockAllMovement(blocked)
             if blocked then
                 hum.WalkSpeed = 0
                 hum.JumpPower = 0
+                hum.AutoRotate = false
             else
                 hum.WalkSpeed = 16
                 hum.JumpPower = 50
+                hum.AutoRotate = true
             end
         end
     end
     
     if blocked then
-        -- Bloqueia WASD (PC)
         local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
         for _, key in ipairs(keys) do
             local conn = UIS.InputBegan:Connect(function(inp, gpe)
@@ -63,7 +65,6 @@ local function blockAllMovement(blocked)
             table.insert(movementConnections, conn)
         end
         
-        -- Bloqueia Mobile
         local pg = LocalPlayer:FindFirstChild("PlayerGui")
         if pg then
             for _, btn in ipairs(pg:GetDescendants()) do
@@ -74,13 +75,11 @@ local function blockAllMovement(blocked)
             end
         end
     else
-        -- Remove bloqueios WASD
         for _, conn in ipairs(movementConnections) do
             conn:Disconnect()
         end
         movementConnections = {}
         
-        -- Libera Mobile
         local pg = LocalPlayer:FindFirstChild("PlayerGui")
         if pg then
             for _, btn in ipairs(pg:GetDescendants()) do
@@ -93,8 +92,35 @@ local function blockAllMovement(blocked)
     end
 end
 
+-- ========== FUNÇÃO PARA PEGAR O JOGADOR MAIS PRÓXIMO ==========
+local function getClosestPlayer()
+    local closest = nil
+    local closestDist = math.huge
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local targetChar = player.Character
+            if targetChar then
+                local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    local dist = (hrp.Position - targetHrp.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
 -- ----------------------------------------------------------------
---  ANTI BAT - SUA LÓGICA ORIGINAL
+--  ANTI BAT - SÓ SETHIDDENPROPERTY (SEM VELOCIDADE)
 -- ----------------------------------------------------------------
 local antiBatStatus, antiBatSwitchBall, antiBatRow, antiBatRowStroke
 local antiBatKeyBtn, antiBatKeyBtnStroke
@@ -102,7 +128,6 @@ local antiBatKeyBtn, antiBatKeyBtnStroke
 local function toggleAntiBat()
     State.antiBatActive = not State.antiBatActive
     
-    -- BLOQUEIA OU LIBERA MOVIMENTO
     blockAllMovement(State.antiBatActive)
     
     if antiBatStatus then
@@ -133,15 +158,25 @@ local function toggleAntiBat()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp then return end
             
-            -- SUA LÓGICA ORIGINAL
-            local vel = hrp.Velocity
-            local dir = hum.MoveDirection
-            if dir.Magnitude <= 0 then
-                dir = hrp.CFrame.LookVector
+            -- ========== SETHIDDENPROPERTY (Y: 2491.41) ==========
+            if sethiddenproperty then
+                local target = getClosestPlayer()
+                if target and target.Character then
+                    local tr = target.Character:FindFirstChild("HumanoidRootPart")
+                    if tr then
+                        -- POSIÇÃO Y FIXA EM 2491.41
+                        local targetPos = Vector3.new(tr.Position.X, 2491.41, tr.Position.Z)
+                        sethiddenproperty(hrp, "PhysicsRepRootPart", tr)
+                        hrp.Position = targetPos
+                    end
+                end
             end
-            hrp.Velocity = Vector3.new(dir.X * 2491.41, 0, dir.Z * 2491.41)
-            RunService.RenderStepped:Wait()
-            hrp.Velocity = vel + Vector3.new(0, 0.05, 0)
+            
+            -- ========== CÂMERA LIVRE ==========
+            local cam = Workspace.CurrentCamera
+            if cam and cam.CameraType ~= Enum.CameraType.Scriptable then
+                cam.CameraType = Enum.CameraType.Custom
+            end
         end)
     else
         if State.antiBatThread then
@@ -371,4 +406,4 @@ end)
 
 updateButtonState(false)
 
-print("AraDuels loaded – Anti-Bat com bloqueio de movimento FORTE!")
+print("AraDuels loaded – Anti-Bat com sethiddenproperty Y:2491.41 e SEM velocidade!")
